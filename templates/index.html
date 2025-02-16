@@ -5,6 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Слайд-шоу</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        /* Стили для блока логов */
+        #log-output {
+            display: none; /* Скрываем по умолчанию */
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #f4f4f4;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            max-height: 200px; /* Фиксированная высота */
+            overflow-y: auto; /* Прокрутка по вертикали */
+            white-space: pre-wrap; /* Сохраняем переносы строк */
+            font-family: monospace; /* Моноширинный шрифт */
+        }
+    </style>
 </head>
 <body>
     <div class="container">
@@ -14,7 +29,7 @@
             <img src="{{ url_for('static', filename='loading.gif') }}" alt="Загрузка...">
             <p>Идет выполнение...</p>
         </div>
-        <div id="log-output"></div>
+        <div id="log-output"></div> <!-- Блок для логов -->
         <a id="download-link" style="display: none;" href="#">Скачать слайд-шоу</a>
     </div>
 
@@ -27,7 +42,8 @@
 
             startBtn.disabled = true;
             loading.style.display = 'block';
-            logOutput.innerHTML = '';
+            logOutput.style.display = 'block'; // Показываем блок логов
+            logOutput.textContent = 'Запуск конвейера...'; // Начальное сообщение
 
             try {
                 const response = await fetch('/start', {
@@ -39,19 +55,34 @@
 
                 const data = await response.json();
                 if (data.status === 'success') {
-                    logOutput.innerHTML = 'Конвейер успешно завершен!';
+                    logOutput.textContent = 'Конвейер успешно завершен!';
                     downloadLink.href = data.download_link;
                     downloadLink.style.display = 'block';
                 } else {
-                    logOutput.innerHTML = 'Ошибка: ' + data.message;
+                    logOutput.textContent = 'Ошибка: ' + data.message;
                 }
             } catch (error) {
-                logOutput.innerHTML = 'Ошибка при выполнении запроса: ' + error.message;
+                logOutput.textContent = 'Ошибка при выполнении запроса: ' + error.message;
             } finally {
                 startBtn.disabled = false;
                 loading.style.display = 'none';
             }
         });
+
+        // Функция для обновления логов в реальном времени
+        async function updateLogs() {
+            const logOutput = document.getElementById('log-output');
+            try {
+                const response = await fetch('/logs');
+                const data = await response.json();
+                logOutput.textContent = data.log; // Обновляем текст лога
+            } catch (error) {
+                logOutput.textContent = 'Ошибка при получении логов: ' + error.message;
+            }
+        }
+
+        // Обновляем логи каждую секунду
+        setInterval(updateLogs, 1000);
     </script>
 </body>
 </html>

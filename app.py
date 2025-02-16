@@ -4,7 +4,8 @@ import logging
 from flask import Flask, render_template, request, jsonify, send_file
 from datetime import datetime
 import sys
-import time  # Добавляем модуль для задержки
+import time
+import threading
 
 app = Flask(__name__)
 
@@ -33,21 +34,45 @@ SCRIPTS_DIR = os.path.join(os.getcwd(), 'scripts')
 # Путь к папке с результатами
 OUTPUT_DIR = os.path.join(os.getcwd(), 'output')
 
+# Глобальная переменная для хранения логов
+script_logs = []
+
+def run_script(script_name, args=None):
+    """Запускает скрипт и захватывает его вывод."""
+    global script_logs
+    script_path = os.path.join(SCRIPTS_DIR, script_name)
+    try:
+        process = subprocess.Popen(
+            ['python3', script_path] + (args if args else []),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
+        for line in process.stdout:
+            script_logs.append(line.strip())
+        for line in process.stderr:
+            script_logs.append(line.strip())
+        process.wait()
+    except Exception as e:
+        script_logs.append(f"Ошибка при выполнении скрипта {script_name}: {str(e)}")
+
 def run_pipeline():
     """Запускает конвейер скриптов."""
+    global script_logs
+    script_logs = []  # Очищаем логи перед запуском
     try:
         # Шаг 1: Запуск parse.py
         logging.info("Запуск parse.py...")
-        subprocess.run(['python3', os.path.join(SCRIPTS_DIR, 'parse.py')], check=True)
+        run_script('parse.py')
 
         # Шаг 2: Запуск imagemaker.py
         logging.info("Запуск imagemaker.py...")
-        subprocess.run(['python3', os.path.join(SCRIPTS_DIR, 'imagemaker.py')], check=True)
+        run_script('imagemaker.py')
 
         # Шаг 3: Запуск slideshowmaker.py
         logging.info("Запуск slideshowmaker.py...")
         today_date = datetime.now().strftime("%Y-%m-%d")
-        subprocess.run(['python3', os.path.join(SCRIPTS_DIR, 'slideshowmaker.py'), today_date], check=True)
+        run_script('slideshowmaker.py', [today_date])
 
         # Возвращаем путь к готовому слайд-шоу
         output_video = os.path.join(OUTPUT_DIR, f"{today_date}.mp4")
@@ -59,8 +84,8 @@ def run_pipeline():
         else:
             logging.error(f"Файл слайд-шоу не найден: {output_video}")
             return None
-    except subprocess.CalledProcessError as e:
-        logging.error(f"Ошибка при выполнении скрипта: {e}")
+    except Exception as e:
+        logging.error(f"Ошибка при выполнении конвейера: {e}")
         return None
 
 @app.route('/')
@@ -106,6 +131,12 @@ def download_file(filename):
         return send_file(file_path, as_attachment=True)
     else:
         return "Файл не найден.", 404
+
+@app.route('/logs')
+def get_logs():
+    """Возвращает текущие логи скриптов."""
+    global script_logs
+    return jsonify({'log': '\n'.join(script_logs)})
 
 if __name__ == '__main__':
     app.run(debug=True)
