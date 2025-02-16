@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Слайд-шоу</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>Генератор слайд-шоу</h1>
+        <button id="start-btn">Запустить конвейер</button>
+        <div id="loading" style="display: none;">
+            <img src="{{ url_for('static', filename='loading.gif') }}" alt="Загрузка...">
+            <p>Идет выполнение...</p>
+        </div>
+        <div id="log-output"></div>
+        <a id="download-link" style="display: none;" href="#">Скачать слайд-шоу</a>
+    </div>
+
+    <script>
+        document.getElementById('start-btn').addEventListener('click', async () => {
+            const startBtn = document.getElementById('start-btn');
+            const loading = document.getElementById('loading');
+            const logOutput = document.getElementById('log-output');
+            const downloadLink = document.getElementById('download-link');
+
+            startBtn.disabled = true;
+            loading.style.display = 'block';
+            logOutput.innerHTML = '';
+
+            try {
+                const response = await fetch('/start', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+                if (data.status === 'success') {
+                    logOutput.innerHTML = 'Конвейер успешно завершен!';
+                    downloadLink.href = data.download_link;
+                    downloadLink.style.display = 'block';
+                } else {
+                    logOutput.innerHTML = 'Ошибка: ' + data.message;
+                }
+            } catch (error) {
+                logOutput.innerHTML = 'Ошибка при выполнении запроса: ' + error.message;
+            } finally {
+                startBtn.disabled = false;
+                loading.style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html>
