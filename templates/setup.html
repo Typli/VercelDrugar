@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Настройка Telegram</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f4f4f4;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            width: 300px;
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        button {
+            width: 100%;
+            padding: 10px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #218838;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Настройка Telegram</h2>
+        <form id="setup-form">
+            <input type="text" id="api_key" placeholder="API ключ бота" required>
+            <input type="text" id="user_id" placeholder="Ваш User ID" required>
+            <button type="submit">Сохранить</button>
+        </form>
+    </div>
+
+    <script>
+        document.getElementById('setup-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const apiKey = document.getElementById('api_key').value;
+            const userId = document.getElementById('user_id').value;
+
+            const response = await fetch('/setup', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `api_key=${encodeURIComponent(apiKey)}&user_id=${encodeURIComponent(userId)}`
+            });
+
+            const data = await response.json();
+            if (data.status === 'success') {
+                window.location.href = '/';
+            } else {
+                alert('Ошибка: ' + data.message);
+            }
+        });
+    </script>
+</body>
+</html>

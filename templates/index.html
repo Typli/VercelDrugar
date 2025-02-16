@@ -6,18 +6,17 @@
     <title>Слайд-шоу</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <style>
-        /* Стили для блока логов */
         #log-output {
-            display: none; /* Скрываем по умолчанию */
+            display: none;
             margin-top: 20px;
             padding: 10px;
             background-color: #f4f4f4;
             border: 1px solid #ccc;
             border-radius: 5px;
-            max-height: 200px; /* Фиксированная высота */
-            overflow-y: auto; /* Прокрутка по вертикали */
-            white-space: pre-wrap; /* Сохраняем переносы строк */
-            font-family: monospace; /* Моноширинный шрифт */
+            max-height: 200px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            font-family: monospace;
         }
     </style>
 </head>
@@ -29,7 +28,7 @@
             <img src="{{ url_for('static', filename='loading.gif') }}" alt="Загрузка...">
             <p>Идет выполнение...</p>
         </div>
-        <div id="log-output"></div> <!-- Блок для логов -->
+        <div id="log-output"></div>
         <a id="download-link" style="display: none;" href="#">Скачать слайд-шоу</a>
     </div>
 
@@ -42,8 +41,8 @@
 
             startBtn.disabled = true;
             loading.style.display = 'block';
-            logOutput.style.display = 'block'; // Показываем блок логов
-            logOutput.textContent = 'Запуск конвейера...'; // Начальное сообщение
+            logOutput.style.display = 'block';
+            logOutput.textContent = 'Запуск конвейера...';
 
             try {
                 const response = await fetch('/start', {
@@ -69,19 +68,17 @@
             }
         });
 
-        // Функция для обновления логов в реальном времени
         async function updateLogs() {
             const logOutput = document.getElementById('log-output');
             try {
                 const response = await fetch('/logs');
                 const data = await response.json();
-                logOutput.textContent = data.log; // Обновляем текст лога
+                logOutput.textContent = data.log;
             } catch (error) {
                 logOutput.textContent = 'Ошибка при получении логов: ' + error.message;
             }
         }
 
-        // Обновляем логи каждую секунду
         setInterval(updateLogs, 1000);
     </script>
 </body>

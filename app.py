@@ -5,7 +5,8 @@ from flask import Flask, render_template, request, jsonify, send_file
 from datetime import datetime
 import sys
 import time
-import threading
+import json
+import asyncio
 
 app = Flask(__name__)
 
@@ -13,20 +14,18 @@ app = Flask(__name__)
 os.makedirs('logs', exist_ok=True)
 os.makedirs('output', exist_ok=True)
 
-# Настройка логов
+# Настройка логов Flask
+logging.getLogger('werkzeug').setLevel(logging.DEBUG)  # Включаем логи Flask для запуска сервера
+
+# Логирование в файл и консоль
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
-    filename='logs/app.log',
-    filemode='a'
+    handlers=[
+        logging.FileHandler('logs/app.log'),  # Логи в файл
+        logging.StreamHandler(sys.stdout)     # Логи в консоль
+    ]
 )
-
-# Логирование в консоль
-console_handler = logging.StreamHandler(sys.stdout)
-console_handler.setLevel(logging.INFO)
-formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-console_handler.setFormatter(formatter)
-logging.getLogger().addHandler(console_handler)
 
 # Путь к папке со скриптами
 SCRIPTS_DIR = os.path.join(os.getcwd(), 'scripts')
@@ -36,6 +35,18 @@ OUTPUT_DIR = os.path.join(os.getcwd(), 'output')
 
 # Глобальная переменная для хранения логов
 script_logs = []
+
+# Загрузка конфигурации
+def load_config():
+    if os.path.exists('config.json'):
+        with open('config.json', 'r') as f:
+            return json.load(f)
+    return {}
+
+# Сохранение конфигурации
+def save_config(api_key, user_id):
+    with open('config.json', 'w') as f:
+        json.dump({'api_key': api_key, 'user_id': user_id}, f)
 
 def run_script(script_name, args=None):
     """Запускает скрипт и захватывает его вывод."""
@@ -50,11 +61,15 @@ def run_script(script_name, args=None):
         )
         for line in process.stdout:
             script_logs.append(line.strip())
+            logging.info(line.strip())  # Логируем вывод скрипта
         for line in process.stderr:
             script_logs.append(line.strip())
+            logging.error(line.strip())  # Логируем ошибки скрипта
         process.wait()
     except Exception as e:
-        script_logs.append(f"Ошибка при выполнении скрипта {script_name}: {str(e)}")
+        error_msg = f"Ошибка при выполнении скрипта {script_name}: {str(e)}"
+        script_logs.append(error_msg)
+        logging.error(error_msg)
 
 def run_pipeline():
     """Запускает конвейер скриптов."""
@@ -91,7 +106,20 @@ def run_pipeline():
 @app.route('/')
 def index():
     """Главная страница."""
+    config = load_config()
+    if not config:
+        return render_template('setup.html')
     return render_template('index.html')
+
+@app.route('/setup', methods=['POST'])
+def setup():
+    """Сохранение конфигурации Telegram."""
+    api_key = request.form.get('api_key')
+    user_id = request.form.get('user_id')
+    if api_key and user_id:
+        save_config(api_key, user_id)
+        return jsonify({'status': 'success', 'message': 'Конфигурация сохранена.'})
+    return jsonify({'status': 'error', 'message': 'Неверные данные.'}), 400
 
 @app.route('/start', methods=['POST'])
 def start_pipeline():
@@ -105,6 +133,9 @@ def start_pipeline():
 
         if os.path.exists(output_video):
             logging.info("Конвейер успешно завершен.")
+            # Отправляем видео в Telegram
+            from bot import send_video_to_user
+            asyncio.run(send_video_to_user(output_video))
             return jsonify({
                 'status': 'success',
                 'message': 'Конвейер успешно завершен.',
@@ -139,4 +170,7 @@ def get_logs():
     return jsonify({'log': '\n'.join(script_logs)})
 
 if __name__ == '__main__':
+    # Логирование запуска сервера
+    logging.info("Запуск Flask-приложения...")
+    logging.info(f"Сервер доступен по адресу: http://127.0.0.1:5000")
     app.run(debug=True)
